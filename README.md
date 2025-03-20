@@ -11,7 +11,7 @@
         justify-content: center;
         align-items: center;
         height: 100vh;
-        background-color: #f0f8ff; /* Màu nền nhẹ nhàng */
+        background-color:
         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         margin: 0;
     }
