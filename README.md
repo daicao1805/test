@@ -1,4 +1,4 @@
-
+<!DOCTYPE html>
 <html lang="vi">
 
 <head>
@@ -11,12 +11,13 @@
         justify-content: center;
         align-items: center;
         height: 100vh;
-        background-color:
+        background-color: #f0f8ff; /* Màu nền nhẹ nhàng */
         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         margin: 0;
     }
 
     .container {
+        position: fixed;
         background: white;
         padding: 30px;
         border-radius: 15px;
