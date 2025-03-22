@@ -185,146 +185,152 @@
     </div>
 
     <script>
-        const sentences = [];
-        function loadSentences() {
-            fetch('sentences.txt')
-                .then(response => response.text())
-                .then(data => {
-                    const lines = data.split('\n');
-                    sentences = lines.map(line => {
-                        const parts = line.split('|');
-                        return { en: parts[0], vi: parts[1] };
-                    }).filter(sentence => sentence.en && sentence.vi);
-                    initApp();
+        const BIN_ID = "67dd3f5d8561e97a50f023d1";
+        const API_KEY = "$2a$10$nhEMSbt5f6ndDu6g5pUk.u67T0zTxnAyoUax9gLhPZr1wJayJsHYa";
+        let sentences = [];
+        let index = 0;
+        let speechInstance = null;
+        let speakTimeout;
+        let score = 0;
+        let showedAnswer = [];
+
+        async function getDataFromJSONBin() {
+            try {
+                const response = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, {
+                    method: "GET",
+                    headers: {
+                        "X-Master-Key": API_KEY,
+                    },
                 });
+
+                if (!response.ok) {
+                    throw new Error(`Lỗi API: ${response.status}`);
+                }
+
+                const data = await response.json();
+                sentences = getRandomSubset(data.record, 100);
+                updateScore();
+                speak(5);
+            } catch (error) {
+                console.error("Erorr:", error);
+            }
         }
-        function initApp() {
-            let index = 0;
-            let speechInstance = null;
-            let speakTimeout;
-            let score = 0;
-            let showedAnswer = [];
+        getDataFromJSONBin();
+        populateVoices();
 
-            function updateSentence() {
-                document.getElementById("answer").value = "";
-                document.getElementById("message").textContent = "";
-                document.getElementById("vietnamese").style.display = "none";
-                document.getElementById("english").style.display = "none";
+        function updateSentence() {
+            document.getElementById("answer").value = "";
+            document.getElementById("message").textContent = "";
+            document.getElementById("vietnamese").style.display = "none";
+            document.getElementById("english").style.display = "none";
+        }
+
+        function populateVoices() {
+            const voiceSelect = document.getElementById("voiceSelect");
+            const voices = speechSynthesis.getVoices().filter(voice => voice.lang.startsWith("en"));
+
+            voiceSelect.innerHTML = voices.map(voice => `<option value="${voice.name}">${voice.name}</option>`).join("");
+
+            const defaultVoice = voices.find(voice => voice.name === "Google UK English Male") || voices[0];
+            if (defaultVoice) {
+                voiceSelect.value = defaultVoice.name;
             }
+        }
 
-            function populateVoices() {
-                const voiceSelect = document.getElementById("voiceSelect");
-                const voices = speechSynthesis.getVoices().filter(voice => voice.lang.startsWith("en"));
-
-                voiceSelect.innerHTML = voices.map(voice => `<option value="${voice.name}">${voice.name}</option>`).join("");
-
-                const defaultVoice = voices.find(voice => voice.name === "Google UK English Male") || voices[0];
-                if (defaultVoice) {
-                    voiceSelect.value = defaultVoice.name;
-                }
-            }
-
-            function speak(repeat = 1, delay = 3000) {
-                if (speechInstance) {
-                    speechSynthesis.cancel();
-                    clearTimeout(speakTimeout);
-                }
-
-                speechInstance = new SpeechSynthesisUtterance(sentences[index].en);
-                speechInstance.lang = "en-GB";
-                speechInstance.rate = 1;
-                const selectedVoice = document.getElementById("voiceSelect").value;
-                speechInstance.voice = speechSynthesis.getVoices().find(voice => voice.name === selectedVoice);
-
-                let count = 0;
-                function speakAgain() {
-                    if (count < repeat) {
-                        speechSynthesis.speak(speechInstance);
-                        count++;
-                        speakTimeout = setTimeout(() => {
-                            if (count < repeat) speakAgain();
-                        }, delay);
-                    }
-                }
-                speakAgain();
-            }
-
-            function checkAnswer() {
-                const userAnswer = document.getElementById("answer").value.trim().replace(/[.,?!]/g, "");
-                const correctAnswer = sentences[index].en.replace(/[.,?!]/g, "");
-
-                if (userAnswer.toLowerCase() === correctAnswer.toLowerCase()) {
-                    console.log("showedAnswer111: ", showedAnswer)
-                    console.log("showedAnswer111: ", index)
-
-                    if (!showedAnswer.includes(index)) {
-                        score++;
-                        console.log("da vao: ", score)
-                        showedAnswer.push(index);
-                    }
-                    document.getElementById("message").textContent = "✅ Chính xác!";
-                    document.getElementById("message").style.color = "green";
-                    document.getElementById("vietnamese").textContent = sentences[index].vi;
-                    document.getElementById("vietnamese").style.display = "block";
-                    document.getElementById("english").textContent = sentences[index].en;
-                    document.getElementById("english").style.display = "block";
-                    updateScore();
-                } else {
-                    document.getElementById("message").textContent = "❌ Sai rồi! Hãy thử lại.";
-                    document.getElementById("message").style.color = "red";
-                }
-            }
-
-            function nextSentence() {
+        function speak(repeat = 1, delay = 3000) {
+            if (speechInstance) {
                 speechSynthesis.cancel();
                 clearTimeout(speakTimeout);
-                index = (index + 1) % sentences.length;
-                updateSentence();
-                speak(3);
             }
-
-            function prevSentence() {
-                speechSynthesis.cancel();
-                clearTimeout(speakTimeout);
-                index = (index - 1 + sentences.length) % sentences.length;
-                updateSentence();
-                speak(3);
-            }
-
-            document.addEventListener("keydown", function (event) {
-                if (event.altKey && event.key === "ArrowRight") {
-                    nextSentence();
-                } else if (event.altKey && event.key === "ArrowLeft") {
-                    prevSentence();
-                } else if (event.key === "Enter") {
-                    checkAnswer();
+            
+            speechInstance = new SpeechSynthesisUtterance(sentences[index].en);
+            speechInstance.lang = "en-GB";
+            speechInstance.rate = 1;
+            const selectedVoice = document.getElementById("voiceSelect").value;
+            speechInstance.voice = speechSynthesis.getVoices().find(voice => voice.name === selectedVoice);
+            console.log("vao day: ", speechInstance);
+            
+            let count = 0;
+            function speakAgain() {
+                if (count < repeat) {
+                    speechSynthesis.speak(speechInstance);
+                    count++;
+                    speakTimeout = setTimeout(() => {
+                        if (count < repeat) speakAgain();
+                    }, delay);
                 }
-            });
+            }
+            speakAgain();
+        }
 
-            function showAnswer() {
-                document.getElementById("english").textContent = sentences[index].en;
-                document.getElementById("english").style.display = "block";
+        function checkAnswer() {
+            const userAnswer = document.getElementById("answer").value.trim().replace(/[.,?!]/g, "");
+            const correctAnswer = sentences[index].en.replace(/[.,?!]/g, "");
+
+            if (userAnswer.toLowerCase() === correctAnswer.toLowerCase()) {
                 if (!showedAnswer.includes(index)) {
+                    score++;
                     showedAnswer.push(index);
                 }
-                console.log("showedAnswer: ", showedAnswer)
-            }
-
-            function updateScore() {
-                document.getElementById("score").textContent = `Điểm: ${score}/${sentences.length}`;
-            }
-
-            speechSynthesis.onvoiceschanged = populateVoices;
-
-            window.onload = () => {
-                populateVoices();
-                setTimeout(() => {
-                    speak(1);
-                }, 500);
+                document.getElementById("message").textContent = "✅ Correct!";
+                document.getElementById("message").style.color = "green";
+                document.getElementById("vietnamese").textContent = sentences[index].vi;
+                document.getElementById("vietnamese").style.display = "block";
+                document.getElementById("english").textContent = sentences[index].en;
+                document.getElementById("english").style.display = "block";
                 updateScore();
-            };
+            } else {
+                document.getElementById("message").textContent = "❌ Wrong, try again.";
+                document.getElementById("message").style.color = "red";
+            }
         }
-        loadSentences();
+
+        function nextSentence() {
+            speechSynthesis.cancel();
+            clearTimeout(speakTimeout);
+            index = (index + 1) % sentences.length;
+            updateSentence();
+            speak(3);
+        }
+
+        function prevSentence() {
+            speechSynthesis.cancel();
+            clearTimeout(speakTimeout);
+            index = (index - 1 + sentences.length) % sentences.length;
+            updateSentence();
+            speak(3);
+        }
+
+        document.addEventListener("keydown", function (event) {
+            if (event.altKey && event.key === "ArrowRight") {
+                nextSentence();
+            } else if (event.altKey && event.key === "ArrowLeft") {
+                prevSentence();
+            } else if (event.key === "Enter") {
+                checkAnswer();
+            }
+        });
+
+        function showAnswer() {
+            document.getElementById("english").textContent = sentences[index].en;
+            document.getElementById("english").style.display = "block";
+            if (!showedAnswer.includes(index)) {
+                showedAnswer.push(index);
+            }
+        }
+
+        function updateScore() {
+            document.getElementById("score").textContent = `Score: ${score}/${sentences.length}`;
+        }
+
+        function getRandomSubset(array, maxRecords) {
+            return array
+                .sort(() => Math.random() - 0.5)
+                .slice(0, maxRecords);
+        }
+
+        speechSynthesis.onvoiceschanged = populateVoices;
+
     </script>
 </body>
 
